@@ -37,7 +37,8 @@ BASH=
 
 endif
 
-CLANG_VERSION=$(shell $(BASH) ./llvm_version.sh $(LLVM_PROJ_DIR))
+# Only the major version is needed for Clang, see https://reviews.llvm.org/D125860.
+CLANG_VERSION=$(shell $(BASH) ./llvm_version_major.sh $(LLVM_PROJ_DIR))
 VERSION:=$(shell $(BASH) ./version.sh)
 DEBUG_PREFIX_MAP=-fdebug-prefix-map=$(ROOT_DIR)=wasisdk://v$(VERSION)
 
@@ -62,13 +63,17 @@ build/llvm.BUILT:
 		-DLLVM_STATIC_LINK_CXX_STDLIB=ON \
 		-DLLVM_HAVE_LIBXAR=OFF \
 		-DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" \
-		-DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 \
+		-DCMAKE_OSX_DEPLOYMENT_TARGET=10.12 \
 		-DCMAKE_INSTALL_PREFIX=$(PREFIX) \
+		-DLLVM_INCLUDE_TESTS=OFF \
+		-DLLVM_INCLUDE_UTILS=OFF \
+		-DLLVM_INCLUDE_BENCHMARKS=OFF \
+		-DLLVM_INCLUDE_EXAMPLES=OFF \
 		-DLLVM_TARGETS_TO_BUILD=WebAssembly \
 		-DLLVM_DEFAULT_TARGET_TRIPLE=wasm32-wasi \
 		-DLLVM_ENABLE_PROJECTS="lld;clang;clang-tools-extra" \
-		$(if $(patsubst 9.%,,$(CLANG_VERSION)), \
-	             $(if $(patsubst 10.%,,$(CLANG_VERSION)), \
+		$(if $(patsubst 9,,$(CLANG_VERSION)), \
+	             $(if $(patsubst 10,,$(CLANG_VERSION)), \
 		          -DDEFAULT_SYSROOT=../share/wasi-sysroot, \
 			  -DDEFAULT_SYSROOT=$(PREFIX)/share/wasi-sysroot), \
 		     -DDEFAULT_SYSROOT=$(PREFIX)/share/wasi-sysroot) \
@@ -153,8 +158,8 @@ LIBCXX_CMAKE_FLAGS = \
     -DLLVM_CONFIG_PATH=$(ROOT_DIR)/build/llvm/bin/llvm-config \
     -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON \
     -DCXX_SUPPORTS_CXX11=ON \
-    -DLIBCXX_ENABLE_THREADS:BOOL=OFF \
-    -DLIBCXX_HAS_PTHREAD_API:BOOL=OFF \
+    -DLIBCXX_ENABLE_THREADS:BOOL=@PTHREAD@ \
+    -DLIBCXX_HAS_PTHREAD_API:BOOL=@PTHREAD@ \
     -DLIBCXX_HAS_EXTERNAL_THREAD_API:BOOL=OFF \
     -DLIBCXX_BUILD_EXTERNAL_THREAD_LIBRARY:BOOL=OFF \
     -DLIBCXX_HAS_WIN32_THREAD_API:BOOL=OFF \
@@ -171,8 +176,8 @@ LIBCXX_CMAKE_FLAGS = \
     -DLIBCXXABI_ENABLE_EXCEPTIONS:BOOL=OFF \
     -DLIBCXXABI_ENABLE_SHARED:BOOL=OFF \
     -DLIBCXXABI_SILENT_TERMINATE:BOOL=ON \
-    -DLIBCXXABI_ENABLE_THREADS:BOOL=OFF \
-    -DLIBCXXABI_HAS_PTHREAD_API:BOOL=OFF \
+    -DLIBCXXABI_ENABLE_THREADS:BOOL=@PTHREAD@ \
+    -DLIBCXXABI_HAS_PTHREAD_API:BOOL=@PTHREAD@ \
     -DLIBCXXABI_HAS_EXTERNAL_THREAD_API:BOOL=OFF \
     -DLIBCXXABI_BUILD_EXTERNAL_THREAD_LIBRARY:BOOL=OFF \
     -DLIBCXXABI_HAS_WIN32_THREAD_API:BOOL=OFF \
@@ -184,17 +189,28 @@ LIBCXX_CMAKE_FLAGS = \
 build/libcxx.BUILT: build/llvm.BUILT build/compiler-rt.BUILT build/wasi-libc.BUILT
 	# Do the build.
 	mkdir -p build/libcxx
-	cd build/libcxx && cmake -G Ninja $(LIBCXX_CMAKE_FLAGS) \
+	cd build/libcxx && cmake -G Ninja $(LIBCXX_CMAKE_FLAGS:@PTHREAD@=OFF) \
 		-DCMAKE_SYSROOT=$(BUILD_PREFIX)/share/wasi-sysroot \
-		-DCMAKE_C_FLAGS="$(DEBUG_PREFIX_MAP)" \
-		-DCMAKE_CXX_FLAGS="$(DEBUG_PREFIX_MAP)" \
+		-DCMAKE_C_FLAGS="$(DEBUG_PREFIX_MAP) $(EXTRA_CFLAGS)" \
+		-DCMAKE_CXX_FLAGS="$(DEBUG_PREFIX_MAP) $(EXTRA_CXXFLAGS)" \
 		-DLIBCXX_LIBDIR_SUFFIX=$(ESCAPE_SLASH)/wasm32-wasi \
 		-DLIBCXXABI_LIBDIR_SUFFIX=$(ESCAPE_SLASH)/wasm32-wasi \
 		-DLLVM_ENABLE_RUNTIMES="libcxx;libcxxabi" \
 		$(LLVM_PROJ_DIR)/runtimes
 	ninja $(NINJA_FLAGS) -C build/libcxx
+	mkdir -p build/libcxx-threads
+	cd build/libcxx-threads && cmake -G Ninja $(LIBCXX_CMAKE_FLAGS:@PTHREAD@=ON) \
+		-DCMAKE_SYSROOT=$(BUILD_PREFIX)/share/wasi-sysroot \
+		-DCMAKE_C_FLAGS="$(DEBUG_PREFIX_MAP) -pthread $(EXTRA_CFLAGS)" \
+		-DCMAKE_CXX_FLAGS="$(DEBUG_PREFIX_MAP) -pthread $(EXTRA_CXXFLAGS)" \
+		-DLIBCXX_LIBDIR_SUFFIX=$(ESCAPE_SLASH)/wasm32-wasi-threads \
+		-DLIBCXXABI_LIBDIR_SUFFIX=$(ESCAPE_SLASH)/wasm32-wasi-threads \
+		-DLLVM_ENABLE_RUNTIMES="libcxx;libcxxabi" \
+		$(LLVM_PROJ_DIR)/runtimes
+	ninja $(NINJA_FLAGS) -C build/libcxx-threads
 	# Do the install.
 	DESTDIR=$(DESTDIR) ninja $(NINJA_FLAGS) -C build/libcxx install
+	DESTDIR=$(DESTDIR) ninja $(NINJA_FLAGS) -C build/libcxx-threads install
 	touch build/libcxx.BUILT
 
 build/config.BUILT:
