@@ -110,18 +110,14 @@ build/wasi-libc.BUILT: build/llvm.BUILT
 		AR=$(BUILD_PREFIX)/bin/llvm-ar \
 		NM=$(BUILD_PREFIX)/bin/llvm-nm \
 		SYSROOT=$(BUILD_PREFIX)/share/wasi-sysroot
-	$(MAKE) -C $(ROOT_DIR)/src/wasi-libc \
-		CC=$(BUILD_PREFIX)/bin/clang \
-		AR=$(BUILD_PREFIX)/bin/llvm-ar \
-		NM=$(BUILD_PREFIX)/bin/llvm-nm \
-		SYSROOT=$(BUILD_PREFIX)/share/wasi-sysroot \
-		THREAD_MODEL=posix
 	touch build/wasi-libc.BUILT
 
 build/compiler-rt.BUILT: build/llvm.BUILT build/wasi-libc.BUILT
 	# Do the build, and install it.
 	mkdir -p build/compiler-rt
 	cd build/compiler-rt && cmake -G Ninja \
+		-DCMAKE_C_FLAGS="$(DEBUG_PREFIX_MAP) $(EXTRA_CFLAGS)" \
+		-DCMAKE_CXX_FLAGS="$(DEBUG_PREFIX_MAP) $(EXTRA_CXXFLAGS)" \
 		-DCMAKE_SYSROOT=$(BUILD_PREFIX)/share/wasi-sysroot \
 		-DCMAKE_C_COMPILER_WORKS=ON \
 		-DCMAKE_CXX_COMPILER_WORKS=ON \
@@ -136,7 +132,6 @@ build/compiler-rt.BUILT: build/llvm.BUILT build/wasi-libc.BUILT
 		-DCOMPILER_RT_ENABLE_IOS=OFF \
 		-DCOMPILER_RT_DEFAULT_TARGET_ONLY=On \
 		-DWASI_SDK_PREFIX=$(BUILD_PREFIX) \
-		-DCMAKE_C_FLAGS="$(DEBUG_PREFIX_MAP)" \
 		-DLLVM_CONFIG_PATH=$(ROOT_DIR)/build/llvm/bin/llvm-config \
 		-DCOMPILER_RT_OS_DIR=wasi \
 		-DCMAKE_INSTALL_PREFIX=$(PREFIX)/lib/clang/$(CLANG_VERSION)/ \
@@ -198,19 +193,8 @@ build/libcxx.BUILT: build/llvm.BUILT build/compiler-rt.BUILT build/wasi-libc.BUI
 		-DLLVM_ENABLE_RUNTIMES="libcxx;libcxxabi" \
 		$(LLVM_PROJ_DIR)/runtimes
 	ninja $(NINJA_FLAGS) -C build/libcxx
-	mkdir -p build/libcxx-threads
-	cd build/libcxx-threads && cmake -G Ninja $(LIBCXX_CMAKE_FLAGS:@PTHREAD@=ON) \
-		-DCMAKE_SYSROOT=$(BUILD_PREFIX)/share/wasi-sysroot \
-		-DCMAKE_C_FLAGS="$(DEBUG_PREFIX_MAP) -pthread $(EXTRA_CFLAGS)" \
-		-DCMAKE_CXX_FLAGS="$(DEBUG_PREFIX_MAP) -pthread $(EXTRA_CXXFLAGS)" \
-		-DLIBCXX_LIBDIR_SUFFIX=$(ESCAPE_SLASH)/wasm32-wasi-threads \
-		-DLIBCXXABI_LIBDIR_SUFFIX=$(ESCAPE_SLASH)/wasm32-wasi-threads \
-		-DLLVM_ENABLE_RUNTIMES="libcxx;libcxxabi" \
-		$(LLVM_PROJ_DIR)/runtimes
-	ninja $(NINJA_FLAGS) -C build/libcxx-threads
 	# Do the install.
 	DESTDIR=$(DESTDIR) ninja $(NINJA_FLAGS) -C build/libcxx install
-	DESTDIR=$(DESTDIR) ninja $(NINJA_FLAGS) -C build/libcxx-threads install
 	touch build/libcxx.BUILT
 
 build/config.BUILT:

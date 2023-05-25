@@ -21,5 +21,5 @@ cd wasi-sdk
 git switch without-bulk-memory
 git submodule update --init --recursive --progress
 (cd src/wasi-libc && git apply ../../wasi-sdk-without-bulk-memory/bulk-memory.patch)
-make package -j $(nproc)
+EXTRA_CFLAGS="-O2 -DNDEBUG -mcpu=mvp -mmutable-globals" EXTRA_CXXFLAGS="-O2 -DNDEBUG -mcpu=mvp -mmutable-globals" make package -j $(nproc)
 ```
