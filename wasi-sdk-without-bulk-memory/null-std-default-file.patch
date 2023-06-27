@@ -1,0 +1,102 @@
+diff --git a/Makefile b/Makefile
+index 8084ea8..6292d1d 100644
+--- a/Makefile
++++ b/Makefile
+@@ -505,8 +505,8 @@ $(MUSL_PRINTSCAN_NO_FLOATING_POINT_OBJS): CFLAGS += \
+ 
+ # TODO: apply -mbulk-memory globally, once
+ # https://github.com/llvm/llvm-project/issues/52618 is resolved
+-$(BULK_MEMORY_OBJS): CFLAGS += \
+-        -mbulk-memory
++# $(BULK_MEMORY_OBJS): CFLAGS += \
++#         -mbulk-memory
+ 
+ $(BULK_MEMORY_OBJS): CFLAGS += \
+         -DBULK_MEMORY_THRESHOLD=$(BULK_MEMORY_THRESHOLD)
+diff --git a/libc-top-half/musl/src/stdio/__fdopen.c b/libc-top-half/musl/src/stdio/__fdopen.c
+index 5c8df49..49d7ad6 100644
+--- a/libc-top-half/musl/src/stdio/__fdopen.c
++++ b/libc-top-half/musl/src/stdio/__fdopen.c
+@@ -69,10 +69,10 @@ FILE *__fdopen(int fd, const char *mode)
+ 		f->lbf = '\n';
+ 
+ 	/* Initialize op ptrs. No problem if some are unneeded. */
+-	f->read = __stdio_read;
+-	f->write = __stdio_write;
+-	f->seek = __stdio_seek;
+-	f->close = __stdio_close;
++	f->read = NULL;
++	f->write = NULL;
++	f->seek = NULL;
++	f->close = NULL;
+ 
+ #if defined(__wasilibc_unmodified_upstream) || defined(_REENTRANT)
+ 	if (!libc.threaded) f->lock = -1;
+diff --git a/libc-top-half/musl/src/stdio/__fopen_rb_ca.c b/libc-top-half/musl/src/stdio/__fopen_rb_ca.c
+index 192050b..42bd6c1 100644
+--- a/libc-top-half/musl/src/stdio/__fopen_rb_ca.c
++++ b/libc-top-half/musl/src/stdio/__fopen_rb_ca.c
+@@ -21,9 +21,9 @@ FILE *__fopen_rb_ca(const char *filename, FILE *f, unsigned char *buf, size_t le
+ 	f->flags = F_NOWR | F_PERM;
+ 	f->buf = buf + UNGET;
+ 	f->buf_size = len - UNGET;
+-	f->read = __stdio_read;
+-	f->seek = __stdio_seek;
+-	f->close = __stdio_close;
++	f->read = NULL;
++	f->seek = NULL;
++	f->close = NULL;
+ #if defined(__wasilibc_unmodified_upstream) || defined(_REENTRANT)
+ 	f->lock = -1;
+ #endif
+diff --git a/libc-top-half/musl/src/stdio/stderr.c b/libc-top-half/musl/src/stdio/stderr.c
+index 5f24549..d54b44e 100644
+--- a/libc-top-half/musl/src/stdio/stderr.c
++++ b/libc-top-half/musl/src/stdio/stderr.c
+@@ -9,9 +9,9 @@ hidden FILE __stderr_FILE = {
+ 	.fd = 2,
+ 	.flags = F_PERM | F_NORD,
+ 	.lbf = -1,
+-	.write = __stdio_write,
+-	.seek = __stdio_seek,
+-	.close = __stdio_close,
++	.write = NULL,
++	.seek = NULL,
++	.close = NULL,
+ #if defined(__wasilibc_unmodified_upstream) || defined(_REENTRANT)
+ 	.lock = -1,
+ #endif
+diff --git a/libc-top-half/musl/src/stdio/stdin.c b/libc-top-half/musl/src/stdio/stdin.c
+index 68e1c3f..30c6c90 100644
+--- a/libc-top-half/musl/src/stdio/stdin.c
++++ b/libc-top-half/musl/src/stdio/stdin.c
+@@ -8,9 +8,9 @@ hidden FILE __stdin_FILE = {
+ 	.buf_size = sizeof buf-UNGET,
+ 	.fd = 0,
+ 	.flags = F_PERM | F_NOWR,
+-	.read = __stdio_read,
+-	.seek = __stdio_seek,
+-	.close = __stdio_close,
++	.read = NULL,
++	.seek = NULL,
++	.close = NULL,
+ #if defined(__wasilibc_unmodified_upstream) || defined(_REENTRANT)
+ 	.lock = -1,
+ #endif
+diff --git a/libc-top-half/musl/src/stdio/stdout.c b/libc-top-half/musl/src/stdio/stdout.c
+index e0e2bce..7656055 100644
+--- a/libc-top-half/musl/src/stdio/stdout.c
++++ b/libc-top-half/musl/src/stdio/stdout.c
+@@ -9,9 +9,9 @@ hidden FILE __stdout_FILE = {
+ 	.fd = 1,
+ 	.flags = F_PERM | F_NORD,
+ 	.lbf = '\n',
+-	.write = __stdout_write,
+-	.seek = __stdio_seek,
+-	.close = __stdio_close,
++	.write = NULL,
++	.seek = NULL,
++	.close = NULL,
+ #if defined(__wasilibc_unmodified_upstream) || defined(_REENTRANT)
+ 	.lock = -1,
+ #endif
