@@ -10,7 +10,7 @@ sudo apt install git clang ninja cmake make
 ### Windows
 Build on Windows need msys2
 ```shell
-pacman -S base-devel git  mingw-w64-clang-x86_64-toolchain  mingw-w64-clang-x86_64-cmake  mingw-w64-clang-x86_64-ninja
+pacman -Sy base-devel git  mingw-w64-clang-x86_64-toolchain  mingw-w64-clang-x86_64-cmake  mingw-w64-clang-x86_64-ninja
 export PATH=/clang64/bin:/usr/bin:/c/Windows/System32
 ```
 
