@@ -20,6 +20,6 @@ git clone https://github.com/Schleifner/wasi-sdk.git
 cd wasi-sdk
 git switch without-bulk-memory
 git submodule update --init --recursive --progress
-(cd src/wasi-libc && git apply ../../wasi-sdk-without-bulk-memory/bulk-memory.patch)
+(cd src/wasi-libc && git apply ../../wasi-sdk-without-bulk-memory/empty-stdio-exit.patch)
 make package -j $(nproc)
 ```
