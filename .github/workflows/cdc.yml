@@ -1,0 +1,100 @@
+name: CDC
+
+on:
+  create:
+    tags:
+      - wasi-sdk-*
+  push:
+    branches:
+      - main    
+  pull_request:
+
+env:
+  uploadedArtifactName: my-artifact
+
+jobs:
+  relese-sdk:
+    if: startsWith(github.ref, 'refs/tags/') && github.event_name == 'create'
+    runs-on: [atc-ubuntu-latest]
+    needs: [buildOnLinux, buildOnMac]
+    steps:
+      - uses: actions/download-artifact@v3
+        with:
+          name: ${{ env.uploadedArtifactName }}
+          path: ${{ github.workspace }}
+      - name: Display structure of downloaded files
+        run: ls -R
+        working-directory: ${{ github.workspace }}
+      - name: create release
+        id: createRelease
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: ${{ github.ref }}
+      - name: Upload Release Assets
+        uses: alexellis/upload-assets@0.4.0
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          asset_paths: '["./*"]'
+      
+
+  buildOnMac:
+    name: mac Build
+    runs-on: [cawe-macos-arm64]
+    steps:
+      - name: Install tools
+        run: brew update && brew install ninja cmake
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          
+      - name: Update submodule 
+        run: git submodule update --init --depth 16 --jobs 3
+
+      - name: Build
+        run: | 
+          (cd src/wasi-libc && git apply ../../wasi-sdk-without-bulk-memory/empty-stdio-exit.patch)
+          make package -j 4
+
+      - uses: actions/upload-artifact@v3
+        if: startsWith(github.ref, 'refs/tags/') && github.event_name == 'create'
+        with:
+          name: ${{ env.uploadedArtifactName }}
+          path: dist/*
+
+  buildOnLinux:
+    name: x64 Build
+    strategy:
+      fail-fast: true
+      matrix:
+        os: [cawe-linux-x64-experimental-large] # to do add cawe-linux-arm64-compute-large build waiting their fix.
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Install tools 
+        run: |
+          sudo apt update -y
+          sudo apt install clang cmake make ninja-build -y --no-install-recommends
+      # - name: Install tools
+      #   if: ${{ matrix.os == 'cawe-linux-arm64-compute-large' }}
+      #   run: sudo apt-get update && sudo apt-get install clang cmake make ninja-build -y --no-install-recommends
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      
+      - name: Update submodule 
+        run: git submodule update --init --depth 16 --jobs 3
+      
+      - name: Build
+        run: |
+          (cd src/wasi-libc && git apply ../../wasi-sdk-without-bulk-memory/empty-stdio-exit.patch)
+          make package -j $(nproc)
+
+      - uses: actions/upload-artifact@v3
+        if: startsWith(github.ref, 'refs/tags/') && github.event_name == 'create'
+        with:
+          name: ${{ env.uploadedArtifactName }}
+          path: dist/*
+          
