@@ -3,10 +3,7 @@ name: CDC
 on:
   create:
     tags:
-      - wasi-sdk-*
-  push:
-    branches:
-      - main    
+      - wasi-sdk-*   
   pull_request:
 
 env:
@@ -66,20 +63,17 @@ jobs:
           path: dist/*
 
   buildOnLinux:
-    name: x64 Build
+    name: linux Build
     strategy:
       fail-fast: true
       matrix:
-        os: [cawe-linux-x64-experimental-large] # to do add cawe-linux-arm64-compute-large build waiting their fix.
+        os: [cawe-linux-x64-experimental-large, cawe-linux-arm64-compute-large]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Install tools 
         run: |
           sudo apt update -y
           sudo apt install clang cmake make ninja-build -y --no-install-recommends
-      # - name: Install tools
-      #   if: ${{ matrix.os == 'cawe-linux-arm64-compute-large' }}
-      #   run: sudo apt-get update && sudo apt-get install clang cmake make ninja-build -y --no-install-recommends
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
