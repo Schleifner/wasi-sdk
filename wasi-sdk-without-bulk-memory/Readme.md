@@ -2,24 +2,37 @@ The default wasi sdk build enable -mbulk-memory, but it's still a proposal of Wa
 To run wasm sdk on those compilers, -mbulk-memory must be disabled and build the wasi-sdk from source again
 
 ## Install deps
+
 ### Ubuntu
+
 ```shell
 sudo apt install git clang ninja cmake make
 ```
 
 ### Windows
+
 Build on Windows need msys2
+
 ```shell
 pacman -Sy base-devel git  mingw-w64-clang-x86_64-toolchain  mingw-w64-clang-x86_64-cmake  mingw-w64-clang-x86_64-ninja
 export PATH=/clang64/bin:/usr/bin:/c/Windows/System32
 ```
 
 ## Build
+
 ```shell
 git clone https://github.com/Schleifner/wasi-sdk.git
 cd wasi-sdk
 git switch without-bulk-memory
 git submodule update --init --recursive --progress
-(cd src/wasi-libc && git apply ../../wasi-sdk-without-bulk-memory/empty-stdio-exit.patch)
+(cd src/wasi-libc && git apply ../../wasi-sdk-without-bulk-memory/wasi-libc.patch)
+(cd src/llvm-project && git apply ../../wasi-sdk-without-bulk-memory/llvm-project.patch)
 make package -j $(nproc)
+```
+
+## create patch
+
+```shell
+(cd src/wasi-libc && git diff > ../../wasi-sdk-without-bulk-memory/wasi-libc.patch)
+(cd src/llvm-project && git diff > ../../wasi-sdk-without-bulk-memory/llvm-project.patch)
 ```

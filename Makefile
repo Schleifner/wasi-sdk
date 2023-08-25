@@ -4,6 +4,13 @@
 ROOT_DIR=${CURDIR}
 LLVM_PROJ_DIR?=$(ROOT_DIR)/src/llvm-project
 
+EXTRA_CXXFLAGS?=
+EXTRA_CFLAGS?=
+
+EXTRA_CXXFLAGS+=-mno-sign-ext
+
+EXTRA_CFLAGS+=-mno-sign-ext
+
 # Windows needs munging
 ifeq ($(OS),Windows_NT)
 
@@ -113,12 +120,6 @@ build/wasi-libc.BUILT: build/llvm.BUILT
 		AR=$(BUILD_PREFIX)/bin/llvm-ar \
 		NM=$(BUILD_PREFIX)/bin/llvm-nm \
 		SYSROOT=$(BUILD_PREFIX)/share/wasi-sysroot
-	$(MAKE) -C $(ROOT_DIR)/src/wasi-libc \
-		CC=$(BUILD_PREFIX)/bin/clang \
-		AR=$(BUILD_PREFIX)/bin/llvm-ar \
-		NM=$(BUILD_PREFIX)/bin/llvm-nm \
-		SYSROOT=$(BUILD_PREFIX)/share/wasi-sysroot \
-		THREAD_MODEL=posix
 	touch build/wasi-libc.BUILT
 
 build/compiler-rt.BUILT: build/llvm.BUILT build/wasi-libc.BUILT
@@ -201,19 +202,8 @@ build/libcxx.BUILT: build/llvm.BUILT build/compiler-rt.BUILT build/wasi-libc.BUI
 		-DLLVM_ENABLE_RUNTIMES="libcxx;libcxxabi" \
 		$(LLVM_PROJ_DIR)/runtimes
 	ninja $(NINJA_FLAGS) -C build/libcxx
-	mkdir -p build/libcxx-threads
-	cd build/libcxx-threads && cmake -G Ninja $(LIBCXX_CMAKE_FLAGS:@PTHREAD@=ON) \
-		-DCMAKE_SYSROOT=$(BUILD_PREFIX)/share/wasi-sysroot \
-		-DCMAKE_C_FLAGS="$(DEBUG_PREFIX_MAP) -pthread $(EXTRA_CFLAGS)" \
-		-DCMAKE_CXX_FLAGS="$(DEBUG_PREFIX_MAP) -pthread $(EXTRA_CXXFLAGS)" \
-		-DLIBCXX_LIBDIR_SUFFIX=$(ESCAPE_SLASH)/wasm32-wasi-threads \
-		-DLIBCXXABI_LIBDIR_SUFFIX=$(ESCAPE_SLASH)/wasm32-wasi-threads \
-		-DLLVM_ENABLE_RUNTIMES="libcxx;libcxxabi" \
-		$(LLVM_PROJ_DIR)/runtimes
-	ninja $(NINJA_FLAGS) -C build/libcxx-threads
 	# Do the install.
 	DESTDIR=$(DESTDIR) ninja $(NINJA_FLAGS) -C build/libcxx install
-	DESTDIR=$(DESTDIR) ninja $(NINJA_FLAGS) -C build/libcxx-threads install
 	touch build/libcxx.BUILT
 
 build/config.BUILT:
@@ -221,7 +211,6 @@ build/config.BUILT:
 	cp src/config/config.sub src/config/config.guess $(BUILD_PREFIX)/share/misc
 	mkdir -p $(BUILD_PREFIX)/share/cmake
 	cp wasi-sdk.cmake $(BUILD_PREFIX)/share/cmake
-	cp wasi-sdk-pthread.cmake $(BUILD_PREFIX)/share/cmake
 	touch build/config.BUILT
 
 build: build/llvm.BUILT build/wasi-libc.BUILT build/compiler-rt.BUILT build/libcxx.BUILT build/config.BUILT
